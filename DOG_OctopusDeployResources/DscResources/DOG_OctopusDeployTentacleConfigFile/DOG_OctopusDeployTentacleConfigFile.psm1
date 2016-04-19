@@ -2,7 +2,7 @@
 #        string arrays on the DSC resources as well.  According to the comments posted at
 #        http://docs.octopusdeploy.com/display/OD/Automating+Tentacle+installation , the proper syntax for specifying multiple roles
 #        is to use the --role parameter multiple times (not comma-separated or anything like that.)  The same may be true for
-#        --environment; requires testing.
+#        --environment; requires testing. (Role has been updated, environment still outstanding)
 
 # TODO:  Is it possible to have tentacle.exe register a Listening tentacle automatically?  If so, we should make it possible for users
 #        of this DSC resource to set the ServerName, ServerPort, Environment, Role, and RegistrationCredential properties and have DSC
@@ -101,7 +101,7 @@ function Set-TargetResource
 
         [pscredential] $RegistrationCredential,
 
-        [string] $Role,
+        [string[]] $Role,
 
         [string] $Environment,
 
@@ -252,7 +252,7 @@ function Test-TargetResource
 
         [pscredential] $RegistrationCredential,
 
-        [string] $Role,
+        [string[]] $Role,
 
         [string] $Environment,
 
@@ -352,7 +352,7 @@ function Assert-ValidParameterCombinations
 
         [pscredential] $RegistrationCredential,
 
-        [string] $Role,
+        [string[]] $Role,
 
         [string] $Environment,
 
@@ -574,7 +574,35 @@ function Register-PollingTentacle
     }
 
     & $TentacleExePath --console configure --instance $InstanceName --reset-trust
-    & $TentacleExePath --console register-with --instance $InstanceName --server "http://$ServerName" --environment $Environment --name $env:COMPUTERNAME --username $user --password $pass --comms-style TentacleActive --server-comms-port $ServerPort --force --role $Role
+
+    # Create an array to hold all the options that need to be passed to the command
+    # This is done so that all the roles are catered for
+    $cmd_parts = New-Object System.Collections.ArrayList
+    $cmd_parts.Add(("& '{0}'" -f $TentacleExePath)) | Out-Null
+    $cmd_parts.Add("register-with") | Out-Null
+    $cmd_parts.Add("--console") | Out-Null
+    $cmd_parts.Add(('--instance "{0}"' -f $InstanceName)) | Out-Null
+    $cmd_parts.Add(('--server "http://{0}"' -f $ServerName)) | Out-Null
+    $cmd_parts.Add(('--environment "{0}"' -f $Environment)) | Out-Null
+    $cmd_parts.Add(('--name {0}' -f $env:COMPUTERNAME)) | Out-Null
+    $cmd_parts.Add(('--username {0}' -f $user)) | Out-Null
+    $cmd_parts.Add(('--password {0}' -f $pass)) | Out-Null
+    $cmd_parts.Add('--comms-style TentacleActive') | Out-Null
+    $cmd_parts.Add(('--server-comms-port {0}' -f $ServerPort)) | Out-Null
+    $cmd_parts.Add('--force') | Out-Null
+
+    # Now add the roles to the command
+    foreach ($r in $role) {
+      $cmd_parts.Add(('--role "{0}"' -f $r)) | Out-Null
+    }
+
+    # Build up the command to run
+    $cmd = $cmd_parts -join " "
+
+    Write-Verbose ("Registration Command: {0}" -f $cmd)
+
+    # Run the command
+    Invoke-Expression -Command $cmd
 
     if ($LASTEXITCODE -ne 0)
     {
