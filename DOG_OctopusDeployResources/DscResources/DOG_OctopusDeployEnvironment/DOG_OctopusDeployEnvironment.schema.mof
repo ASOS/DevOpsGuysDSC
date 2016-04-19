@@ -1,0 +1,10 @@
+
+[ClassVersion("1.0.0.0"), FriendlyName("cOctopusDelpoyEnvironment")]
+class DOG_OctopusDeployEnvironment : OMI_BaseResource
+{
+	[Key, Description("Name of the enviornment that should exist in Octopus")] string Environment;
+	[Write, Description("State if the environment should exist or not"), ValueMap{"Ensure","Present"}, Values{"Ensure","Present"}] string Ensure;
+	[Write, Description("ApiKey to use to communicate with the Octopus server")] string ApiKey;
+	[Write, Description("URL for the Octopus server")] string Url;
+	[Write, Description("Description of the environment being created")] string Description;
+};
