@@ -12,8 +12,6 @@
 # TODO:  Do we need to support a Listening tentacle that trusts multiple Octopus Deploy servers?  ServerThumbprint could be made an array
 #        property, and the underlying code updated to support this.
 
-# TODO:  Register-PollingTentacle currently assumes the server's web interface is running on http port 80.  Add options for the user to specify
-#        nonstandard ports and/or HTTPS.
 
 . "$PSScriptRoot\..\..\OctopusCommon.ps1"
 
@@ -105,7 +103,9 @@ function Set-TargetResource
 
         [string] $Environment,
 
-        [uint16] $ServerPort = 10943
+        [uint16] $ServerPort = 10943,
+
+        [string] $ServerScheme = "http"
     )
 
     Assert-ValidParameterCombinations @PSBoundParameters
@@ -176,11 +176,18 @@ function Set-TargetResource
                 Set-TentaclePort -TentacleExePath $tentacleExe -InstanceName $TentacleName -Port $Port
             }
 
+            # from current configuration
+            $uri = $server.Address -as [uri]
+
+            # from desired configuration
+            $serverUrl = [uri]("{0}://{1}" -f $ServerScheme, $ServerName)
+
             switch ($CommunicationMode)
             {
                 'Listen'
                 {
                     if ($server.Thumbprint -ne $ServerThumbprint -or
+                        $uri -ne $serverUrl -or
                         $server.CommunicationStyle -ne 'TentaclePassive')
                     {
                         Set-TentacleListener -TentacleExePath $tentacleExe -InstanceName $TentacleName -ServerThumbprint $ServerThumbprint
@@ -189,15 +196,14 @@ function Set-TargetResource
 
                 'Poll'
                 {
-                    $uri = $server.Address -as [uri]
-
-                    if ($uri.Host -ne $ServerName -or
+                    if ($uri.Scheme -ne $ServerScheme -or
+                        $uri.Host -ne $ServerName -or
                         $uri.Port -ne $ServerPort -or
                         $server.CommunicationStyle -ne 'TentacleActive')
                     {
                         Register-PollingTentacle -TentacleExePath $tentacleExe `
                                                  -InstanceName    $TentacleName `
-                                                 -ServerName      $ServerName `
+                                                 -ServerUrl       $serverUrl `
                                                  -Environment     $Environment `
                                                  -Credential      $RegistrationCredential `
                                                  -ServerPort      $ServerPort `
@@ -256,7 +262,9 @@ function Test-TargetResource
 
         [string] $Environment,
 
-        [uint16] $ServerPort = 10943
+        [uint16] $ServerPort = 10943,
+
+        [string] $ServerScheme = "http"
     )
 
     Assert-ValidParameterCombinations @PSBoundParameters
@@ -356,7 +364,9 @@ function Assert-ValidParameterCombinations
 
         [string] $Environment,
 
-        [uint16] $ServerPort = 10943
+        [uint16] $ServerPort = 10943,
+
+        [string] $ServerScheme = "http"
     )
 
     if ($CommunicationMode -eq 'Poll')
@@ -545,7 +555,7 @@ function Set-TentacleListener
 
 function Register-PollingTentacle
 {
-    param ($TentacleExePath, $InstanceName, $ServerName, $Environment, $Credential, $ServerPort, $Role)
+    param ($TentacleExePath, $InstanceName, $ServerUrl, $Environment, $Credential, $ServerPort, $Role)
 
     Write-Verbose "Registering polling tentacle, instance '$InstanceName', with Octopus Deploy server ${ServerName}:${ServerPort}."
 
@@ -582,7 +592,7 @@ function Register-PollingTentacle
     $cmd_parts.Add("register-with") | Out-Null
     $cmd_parts.Add("--console") | Out-Null
     $cmd_parts.Add(('--instance "{0}"' -f $InstanceName)) | Out-Null
-    $cmd_parts.Add(('--server "http://{0}"' -f $ServerName)) | Out-Null
+    $cmd_parts.Add(('--server "{0}"' -f $ServerUrl)) | Out-Null
     $cmd_parts.Add(('--environment "{0}"' -f $Environment)) | Out-Null
     $cmd_parts.Add(('--name {0}' -f $env:COMPUTERNAME)) | Out-Null
     $cmd_parts.Add(('--username {0}' -f $user)) | Out-Null

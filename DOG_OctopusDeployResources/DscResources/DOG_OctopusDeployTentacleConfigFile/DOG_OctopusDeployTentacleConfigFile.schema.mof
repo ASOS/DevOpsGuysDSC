@@ -13,6 +13,7 @@ class DOG_OctopusDeployTentacleConfigFile : OMI_BaseResource
     [write] string Role[];
     [write] string Environment;
     [write] uint16 ServerPort;
+    [write] string ServerScheme;
     [read] string Squid;
     [read] string ServerSquid;
     [read] string CertificateThumbprint;
