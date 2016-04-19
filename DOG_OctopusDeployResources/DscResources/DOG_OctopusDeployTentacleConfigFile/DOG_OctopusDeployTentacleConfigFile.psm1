@@ -4,11 +4,6 @@
 #        is to use the --role parameter multiple times (not comma-separated or anything like that.)  The same may be true for
 #        --environment; requires testing. (Role has been updated, environment still outstanding)
 
-# TODO:  Is it possible to have tentacle.exe register a Listening tentacle automatically?  If so, we should make it possible for users
-#        of this DSC resource to set the ServerName, ServerPort, Environment, Role, and RegistrationCredential properties and have DSC
-#        take care of the registration, instead of requiring a manual discovery of the tentacle from the Octopus Deploy web interface
-#        later.
-
 # TODO:  Do we need to support a Listening tentacle that trusts multiple Octopus Deploy servers?  ServerThumbprint could be made an array
 #        property, and the underlying code updated to support this.
 
@@ -105,7 +100,9 @@ function Set-TargetResource
 
         [uint16] $ServerPort = 10943,
 
-        [string] $ServerScheme = "http"
+        [string] $ServerScheme = "http",
+
+        [string] $ApiKey
     )
 
     Assert-ValidParameterCombinations @PSBoundParameters
@@ -190,7 +187,13 @@ function Set-TargetResource
                         $uri -ne $serverUrl -or
                         $server.CommunicationStyle -ne 'TentaclePassive')
                     {
-                        Set-TentacleListener -TentacleExePath $tentacleExe -InstanceName $TentacleName -ServerThumbprint $ServerThumbprint
+                        Set-TentacleListener -TentacleExePath $tentacleExe `
+                                             -InstanceName $TentacleName `
+                                             -ServerUrl $serverUrl `
+                                             -ServerThumbprint $ServerThumbprint `
+                                             -ApiKey $ApiKey `
+                                             -Environment $Environment `
+                                             -Role $Role
                     }
                 }
 
@@ -264,7 +267,9 @@ function Test-TargetResource
 
         [uint16] $ServerPort = 10943,
 
-        [string] $ServerScheme = "http"
+        [string] $ServerScheme = "http",
+
+        [string] $ApiKey
     )
 
     Assert-ValidParameterCombinations @PSBoundParameters
@@ -366,7 +371,9 @@ function Assert-ValidParameterCombinations
 
         [uint16] $ServerPort = 10943,
 
-        [string] $ServerScheme = "http"
+        [string] $ServerScheme = "http",
+
+        [string] $ApiKey
     )
 
     if ($CommunicationMode -eq 'Poll')
@@ -429,7 +436,7 @@ function Import-TentacleConfigFile
 
         foreach ($server in $trustedServers)
         {
-            if ($server.CommunicationStyle -eq '0')
+            if ($server.CommunicationStyle -eq '1')
             {
                 $server.CommunicationStyle = 'TentaclePassive'
             }
@@ -540,12 +547,38 @@ function Set-TentaclePort
 
 function Set-TentacleListener
 {
-    param ($TentacleExePath, $InstanceName, $ServerThumbprint)
+    param ($TentacleExePath, $InstanceName, $ServerUrl, $ServerThumbprint, $ApiKey, $Environment, $Role)
 
     Write-Verbose "Configuring listening tentacle, instance '$InstanceName', to trust Octopus Deploy server with thumbprint '$ServerThumbprint'"
 
     & $TentacleExePath --console configure --instance $InstanceName --reset-trust
     & $TentacleExePath --console configure --instance $InstanceName --trust $ServerThumbprint
+
+    # Build up the command that will register the tentacle with the server
+    $cmd_parts = New-Object System.Collections.ArrayList
+    $cmd_parts.Add(("& '{0}'" -f $TentacleExePath)) | Out-Null
+    $cmd_parts.Add("register-with") | Out-Null
+    $cmd_parts.Add("--console") | Out-Null
+    $cmd_parts.Add(('--instance "{0}"' -f $InstanceName)) | Out-Null
+    $cmd_parts.Add(('--server "{0}"' -f $ServerUrl)) | Out-Null
+    $cmd_parts.Add(('--environment "{0}"' -f $Environment)) | Out-Null
+    $cmd_parts.Add(('--name {0}' -f $env:COMPUTERNAME)) | Out-Null
+    $cmd_parts.Add('--comms-style TentaclePassive') | Out-Null
+    $cmd_parts.Add(('--apiKey "{0}"' -f $ApiKey)) | Out-Null
+    $cmd_parts.Add('--force') | Out-Null
+
+    # Now add the roles to the command
+    foreach ($r in $Role) {
+      $cmd_parts.Add(('--role "{0}"' -f $r)) | Out-Null
+    }
+
+    # Build up the command to run
+    $cmd = $cmd_parts -join " "
+
+    Write-Verbose ("Registration Command: {0}" -f $cmd)
+
+    # Run the command
+    Invoke-Expression -Command $cmd
 
     if ($LASTEXITCODE -ne 0)
     {
