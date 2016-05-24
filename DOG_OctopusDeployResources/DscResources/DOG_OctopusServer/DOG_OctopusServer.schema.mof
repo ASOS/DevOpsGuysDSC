@@ -1,0 +1,26 @@
+
+[ClassVersion("1.0.0.0"), FriendlyName("OctopusServer")]
+class DOG_OctopusServer : OMI_BaseResource
+{
+	[Key, Description("Name of the Octopus Instance")] string InstanceName;
+	[Write, Description("Whether the instance should be configured or not"), ValueMap{"Absent","Present"}, Values{"Absent","Present"}] string Ensure;
+	[Write, Description("Path to the configuration file to create")] string ConfigFile;
+	[Write, Description("Home path to where the instance files should be stored")] string HomePath;
+	[Write, Description("Connection string for the database")] string DBConnectionString;
+	[Write, Description("State whether an UpgradeCheck should be performed")] boolean UpgradeCheck;
+	[Write, Description("State whether an UpgradeCheck with statistics should be performed")] boolean UpgradeCheckStatistics;
+	[Write, Description("Authentication mode for the web application"), ValueMap{"Domain", "UsernamePassword"}, Values{"Domain", "UsernamePassword"}] string WebAuthenticationMode;
+	[Write, Description("Should the system force SSL on the web site")] boolean WebForceSSL;
+	[Write, Description("What URLs should the website listen on")] string WebListenPrefixes;
+	[Write, Description("Port to listen on for Octopus Tentacle traffic")] string CommsListenPort;
+	[Write, Description("Name of the server the application is running on")] string ServerNodeName;
+	[Write, Description("Admin user of the instance")] string AdminUser;
+	[Write, Description("Admin password of the instance (only required when WebAuthenticationMode is UsernamePassword)")] string AdminPassword;
+	[Write, Description("Licence file to encode for the instance")] string LicenceFile;
+	[Write, Description("Account the application should run under")] string ServiceAccount;
+	[Write, Description("Password associated with the specified service account")] string ServicePassword;
+	[Write, Description("Path to log directory to write out files that are run")] string LogDir;
+	[Write, Description("Whether the instance should be configured or not"), ValueMap{"Standalone","Leader", "Follower"}, Values{"Standalone","Leader", "Follower"}] string HighAvailabilityMode;
+	[Write, Description("The master encryption password. Required for Leader/Follower modes")] string MasterKey;
+	[Write, Description("Whether to allow username/password logons when WebAuthenticationMode is set to Domain")] boolean AllowFormsAuthenticationForDomainUsers;
+};
