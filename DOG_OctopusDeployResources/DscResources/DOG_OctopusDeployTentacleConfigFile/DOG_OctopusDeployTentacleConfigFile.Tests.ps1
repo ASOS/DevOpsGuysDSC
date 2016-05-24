@@ -105,6 +105,7 @@ try
                     Role                   = 'SomeRole'
                     Environment            = 'SomeEnvironment'
                     ServerPort             = 10943
+                    ServerScheme           = 'https'
                 }
 
                 $stubPath = 'TestDrive:\stub.xml'

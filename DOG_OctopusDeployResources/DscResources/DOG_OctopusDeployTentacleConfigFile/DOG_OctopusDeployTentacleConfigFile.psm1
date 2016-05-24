@@ -178,13 +178,14 @@ function Set-TargetResource
 
             # from desired configuration
             $serverUrl = [uri]("{0}://{1}" -f $ServerScheme, $ServerName)
+            $matchUrl = [uri]("{0}://{1}:{2}" -f $ServerScheme, $ServerName, $ServerPort)
 
             switch ($CommunicationMode)
             {
                 'Listen'
                 {
                     if ($server.Thumbprint -ne $ServerThumbprint -or
-                        $uri -ne $serverUrl -or
+                        $uri -ne $matchUrl -or
                         $server.CommunicationStyle -ne 'TentaclePassive')
                     {
                         Set-TentacleListener -TentacleExePath $tentacleExe `
@@ -204,6 +205,7 @@ function Set-TargetResource
                         $uri.Port -ne $ServerPort -or
                         $server.CommunicationStyle -ne 'TentacleActive')
                     {
+
                         Register-PollingTentacle -TentacleExePath $tentacleExe `
                                                  -InstanceName    $TentacleName `
                                                  -ServerUrl       $serverUrl `
